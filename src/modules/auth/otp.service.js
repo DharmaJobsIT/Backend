@@ -1,4 +1,11 @@
 import nodemailer from "nodemailer";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const logoPath = path.resolve(__dirname, "../../assets/dharmajobs-logo.png");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -16,6 +23,14 @@ export const sendOTPEmail = async (email, otp) => {
 
     text: `Your DharmaJobs verification OTP is ${otp}. It will expire in 10 minutes.`,
 
+    attachments: [
+      {
+        filename: "dharmajobs-logo.png",
+        path: logoPath,
+        cid: "dharmajobs-logo",
+      },
+    ],
+
     html: `
       <div style="
         font-family: Arial, sans-serif;
@@ -25,17 +40,21 @@ export const sendOTPEmail = async (email, otp) => {
         border: 1px solid #e5e7eb;
         border-radius: 12px;
       ">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <img
+            src="cid:dharmajobs-logo"
+            alt="DharmaJobs Logo"
+            style="max-width: 180px; max-height: 90px; width: auto; height: auto; object-fit: contain;"
+          />
+        </div>
+
         <h2 style="color: #2563eb;">
           DharmaJobs Email Verification
         </h2>
 
-        <p>
-          Thank you for registering with DharmaJobs.
-        </p>
+        <p>Thank you for registering with DharmaJobs.</p>
 
-        <p>
-          Your verification OTP is:
-        </p>
+        <p>Your verification OTP is:</p>
 
         <div style="
           font-size: 32px;

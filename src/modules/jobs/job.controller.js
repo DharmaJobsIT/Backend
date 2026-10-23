@@ -662,47 +662,26 @@ export const getPublicJobs = async (req, res, next) => {
 
 export const getHomeJobs = async (req, res, next) => {
   try {
+    console.log("🔥 getHomeJobs() CALLED");
+    console.log("👤 Request user:", req.user);
+    console.log("🔑 User role:", req.user?.role);
     await syncExpiredJobs();
 
     const now = new Date();
 
-    /*
-      =========================
-      ACTIVE JOBS ONLY
-      =========================
-    */
-
     const baseFilter = {
       status: "active",
-      expiryDate: {
-        $gte: now,
-      },
+      expiryDate: { $gte: now },
     };
 
     const [latestJobs, boostedJobs, latestCount, boostedCount] =
       await Promise.all([
-        /*
-        LATEST ACTIVE JOBS
-      */
-
-        Job.find(baseFilter)
-          .sort({
-            createdAt: -1,
-          })
-          .limit(6),
-
-        /*
-        BOOSTED ACTIVE JOBS
-      */
+        Job.find(baseFilter).sort({ createdAt: -1 }).limit(6),
 
         Job.find({
           ...baseFilter,
-
           "promotion.isBoosted": true,
-
-          "promotion.boostExpiresAt": {
-            $gte: now,
-          },
+          "promotion.boostExpiresAt": { $gte: now },
         })
           .sort({
             "promotion.priority": -1,
@@ -710,42 +689,52 @@ export const getHomeJobs = async (req, res, next) => {
           })
           .limit(6),
 
-        /*
-        TOTAL ACTIVE JOBS
-      */
-
         Job.countDocuments(baseFilter),
-
-        /*
-        TOTAL BOOSTED JOBS
-      */
 
         Job.countDocuments({
           ...baseFilter,
-
           "promotion.isBoosted": true,
-
-          "promotion.boostExpiresAt": {
-            $gte: now,
-          },
+          "promotion.boostExpiresAt": { $gte: now },
         }),
       ]);
 
-    return res.json({
+    let recommended = { count: 0, jobs: [] };
+
+    if (req.user?.role === "jobseeker") {
+      const recommendationResponse = await new Promise((resolve, reject) => {
+        const response = {
+          status: () => response,
+          json: (data) => resolve(data),
+        };
+
+        getRecommendedJobs(req, response, (error) => reject(error));
+      });
+
+      recommended = {
+        ...recommendationResponse,
+        count: recommendationResponse.total || 0,
+        jobs: recommendationResponse.jobs || [],
+      };
+    }
+
+    const homeResponse = {
       latest: {
         count: latestCount,
         jobs: latestJobs,
       },
-
       boosted: {
         count: boostedCount,
         jobs: boostedJobs,
       },
-    });
+      recommended,
+    };
+
+    return res.json(homeResponse);
   } catch (error) {
     next(error);
   }
 };
+
 export const getJobDetails = async (req, res, next) => {
   try {
     const { jobId } = req.params;
@@ -983,9 +972,8 @@ export const getRecommendedJobs = async (req, res, next) => {
     const now = new Date();
 
     /*
-      Get user activity
-    */
-
+     * Get user activity
+     */
     const [savedJobs, applications, searches] = await Promise.all([
       SavedJob.find({
         jobSeeker: jobSeeker._id,
@@ -1005,24 +993,22 @@ export const getRecommendedJobs = async (req, res, next) => {
         .limit(10),
     ]);
 
-    /*
-      Collect preferences
-    */
 
+    /*
+     * Collect preferences
+     */
     const subjects = new Set(jobSeeker.subjects || []);
 
     const districts = new Set([
       ...(jobSeeker.preferredDistricts || []),
-
       ...(jobSeeker.district ? [jobSeeker.district] : []),
     ]);
 
     const categories = new Set(jobSeeker.preferredCategories || []);
 
     /*
-      Learn from saved jobs
-    */
-
+     * Learn from saved jobs
+     */
     savedJobs.forEach((item) => {
       const job = item.job;
 
@@ -1042,9 +1028,8 @@ export const getRecommendedJobs = async (req, res, next) => {
     });
 
     /*
-      Learn from applied jobs
-    */
-
+     * Learn from applied jobs
+     */
     applications.forEach((application) => {
       const job = application.job;
 
@@ -1064,79 +1049,62 @@ export const getRecommendedJobs = async (req, res, next) => {
     });
 
     /*
-      Get applied job IDs
-
-      Don't recommend jobs
-      the user already applied to
-    */
-
+     * Get applied job IDs
+     * Don't recommend jobs the user already applied to
+     */
     const appliedJobIds = applications
-      .map((application) => {
-        return application.job?._id;
-      })
+      .map((application) => application.job?._id)
       .filter(Boolean);
 
     /*
-      Get active jobs only
-    */
-
+     * Get active jobs only
+     */
     const jobs = await Job.find({
       status: "active",
-
       expiryDate: {
         $gte: now,
       },
-
       _id: {
         $nin: appliedJobIds,
       },
     });
 
     /*
-      Prepare search keywords
-    */
-
+     * Prepare search keywords
+     */
     const searchKeywords = searches.map((search) => search.keyword);
 
     /*
-      Score every job
-    */
-
+     * Score every job
+     */
     const scoredJobs = jobs.map((job) => {
       let score = 0;
 
       /*
-        Subject Match
-      */
-
+       * Subject Match
+       */
       if (job.subject && subjects.has(job.subject)) {
         score += 5;
       }
 
       /*
-        District Match
-      */
-
+       * District Match
+       */
       if (job.district && districts.has(job.district)) {
         score += 4;
       }
 
       /*
-        Category Match
-      */
-
+       * Category Match
+       */
       if (job.category && categories.has(job.category)) {
         score += 3;
       }
 
       /*
-        Experience Match
-
-        Job requires experience
-        less than or equal to
-        candidate experience
-      */
-
+       * Experience Match
+       * Job requires experience less than or equal to candidate experience
+       */
       if (
         typeof job.experienceRequired === "number" &&
         job.experienceRequired <= jobSeeker.experienceYears
@@ -1145,9 +1113,8 @@ export const getRecommendedJobs = async (req, res, next) => {
       }
 
       /*
-        Qualification Match
-      */
-
+       * Qualification Match
+       */
       if (
         job.qualification &&
         jobSeeker.highestQualification &&
@@ -1159,16 +1126,13 @@ export const getRecommendedJobs = async (req, res, next) => {
       }
 
       /*
-        Search Keyword Match
-      */
-
+       * Search Keyword Match
+       */
       searchKeywords.forEach((keyword) => {
         const normalizedKeyword = keyword.toLowerCase();
 
         const title = job.title?.toLowerCase() || "";
-
         const subject = job.subject?.toLowerCase() || "";
-
         const institute = job.instituteName?.toLowerCase() || "";
 
         if (
@@ -1181,9 +1145,8 @@ export const getRecommendedJobs = async (req, res, next) => {
       });
 
       /*
-        Small boost for promoted jobs
-      */
-
+       * Small boost for promoted jobs
+       */
       if (job.promotion?.isBoosted && job.promotion?.boostExpiresAt >= now) {
         score += 1;
       }
@@ -1195,12 +1158,10 @@ export const getRecommendedJobs = async (req, res, next) => {
     });
 
     /*
-      Sort by:
-
-      1. Recommendation score
-      2. Latest job
-    */
-
+     * Sort by:
+     * 1. Recommendation score
+     * 2. Latest job
+     */
     scoredJobs.sort((a, b) => {
       if (b.score !== a.score) {
         return b.score - a.score;
@@ -1210,34 +1171,26 @@ export const getRecommendedJobs = async (req, res, next) => {
     });
 
     /*
-      Return top recommendations
-    */
-
+     * Return top recommendations
+     */
     const recommendedJobs = scoredJobs.slice(0, 20).map((item) => ({
       ...item.job.toObject(),
-
       recommended: true,
-
       recommendationScore: item.score,
     }));
 
     res.json({
       total: recommendedJobs.length,
-
       jobs: recommendedJobs,
 
       recommendationSources: {
         savedJobs: savedJobs.length,
-
         appliedJobs: applications.length,
-
         searches: searches.length,
 
         profile: {
           subjects: jobSeeker.subjects?.length || 0,
-
           districts: jobSeeker.preferredDistricts?.length || 0,
-
           categories: jobSeeker.preferredCategories?.length || 0,
         },
       },

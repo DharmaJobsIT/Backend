@@ -22,7 +22,7 @@ import { requireVerifiedRecruiter } from "../../middleware/requireVerifiedRecrui
 const router = express.Router();
 
 router.get("/", optionalProtect, getPublicJobs);
-router.get("/home", getHomeJobs);
+router.get("/home",optionalProtect, getHomeJobs);
 router.get("/recommended", protect, authorize("jobseeker"), getRecommendedJobs);
 router.get("/:jobId/similar", getSimilarJobs);
 router.get("/:jobId", getJobDetails);

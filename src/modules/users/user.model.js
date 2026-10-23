@@ -32,6 +32,16 @@ const userSchema = new mongoose.Schema(
       default: "local",
     },
     googleId: String,
+
+    passwordResetToken: {
+      type: String,
+      select: false,
+    },
+    passwordResetExpires: {
+      type: Date,
+      select: false,
+    },
+
     isActive: {
       type: Boolean,
       default: true,

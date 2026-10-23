@@ -19,6 +19,7 @@ import jobSeekerRoutes from "./src/modules/jobseekers/jobseeker.route.js";
 import savedJobRoutes from "./src/modules/jobseekers/savedJobs.route.js";
 import applicationRoutes from "./src/modules/applications/application.route.js";
 import adminRoutes from "./src/modules/admin/admin.route.js";
+import supportRoutes from "./src/modules/support/support.route.js";
 
 //dotenv.config();
 
@@ -52,6 +53,7 @@ app.use("/api/jobs", jobDetailsRoutes);
 app.use("/api/jobseekers", jobSeekerRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/saved-jobs", savedJobRoutes);
+app.use("/api/support", supportRoutes);
 // Health Check Route
 app.get("/", (req, res) => {
   res.json({ message: "DharmaJobs Backend Running 🚀" });

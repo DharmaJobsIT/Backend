@@ -1,5 +1,14 @@
 import express from "express";
-import { adminLogin, loginUser, sendOTP, verifyOTPAndRegister, googleLoginCallback, exchangeGoogleCode } from "./auth.controller.js";
+import {
+  adminLogin,
+  loginUser,
+  sendOTP,
+  verifyOTPAndRegister,
+  googleLoginCallback,
+  exchangeGoogleCode,
+  forgotPassword,
+  resetPassword,
+} from "./auth.controller.js";
 import passport from "passport";
 
 const router = express.Router();
@@ -32,7 +41,6 @@ router.get(
   googleLoginCallback,
 );
 
-
 /*
 |--------------------------------------------------------------------------
 | Google OAuth - Recruiter
@@ -54,10 +62,10 @@ router.get(
   googleLoginCallback,
 );
 
-router.post(
-  "/google/exchange",
-  exchangeGoogleCode,
-);
+router.post("/google/exchange", exchangeGoogleCode);
+
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 
 router.post("/send-otp", sendOTP);
 router.post("/verify-otp", verifyOTPAndRegister);
